@@ -1,0 +1,47 @@
+# 多裁判配置（盲评，全程不接收参考答案）
+# 裁判是「评测智能体」：在 agent loop 中可多轮调用 web_search / fetch_page / calculate 自主查证，
+# 走 意图理解→理想锚定→多角度分析→对比→判定 的深度推演。
+judges:
+  # —— 主裁判：glm-5.2（聚合代理，支持 function calling，可联网核查）——
+  - name: judge_glm
+    runner: openai_compat
+    base_url: http://1239mxgn96959.vicp.fun:4009/v1
+    api_key_env: PROXY_API_KEY
+    model: glm-5.2
+    persona: strict_expert
+    enable_web_search: true          # 开启 agent loop 联网查证
+    enable_fetch: true               # 允许抓取网页正文深挖
+    enable_calculate: true           # 允许算术核查
+    enable_python: false             # 代码执行默认关
+    concurrency: 4
+
+  # —— 第二裁判：glm-5.1（同代理，不同 persona，模拟不同评测员）——
+  - name: judge_deepseek_pro
+    runner: openai_compat
+    base_url: http://1239mxgn96959.vicp.fun:4009/v1
+    api_key_env: PROXY_API_KEY
+    model: deepseek-v4-pro-openai
+    persona: end_user              # 与 judge_glm(strict_expert) 形成视角差异
+    enable_web_search: true
+    enable_fetch: true
+    enable_calculate: true
+    enable_python: false
+    concurrency: 4
+
+# 评测选项：补足人工评测缺点
+eval_options:
+  repeat: 1                         # 同裁判重复采样次数（算稳定性）
+  pairwise_bidirectional: true      # A/B 双向比较，抗位置偏差
+  independent_then_compare: true    # 先独立盲评再成对比较，抗锚定
+  pairwise_for_ref: false           # 有参考答案题是否也做成对比较
+  search_provider: tavily           # 联网检索：tavily | serpapi | bing
+  search_topk: 3
+
+# 多裁判聚合
+ensemble:
+  rubric: trim_mean                 # 去极值均值
+  correctness: majority_vote
+  pairwise: majority_vote
+  bootstrap_ci: true                # 胜率/均分 Bootstrap 置信区间
+  n_bootstrap: 200
+  flag_low_agreement: 0.6           # 一致率/稳定性低于此值 → 标红人工复核

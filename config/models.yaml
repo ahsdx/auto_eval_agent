@@ -1,0 +1,20 @@
+# 被测模型配置：my_agent + 竞品 doubao
+# 三者走同一个聚合代理（OpenAI 兼容），仅 model 不同。
+models:
+  # —— 待评测的自研 agent ——
+  - name: my_agent
+    runner: openai_compat
+    base_url: http://1239mxgn96959.vicp.fun:4009/v1
+    api_key_env: PROXY_API_KEY
+    model: glm-4.7
+    concurrency: 4
+    temperature: 0
+
+  # —— 竞品：doubao（这里用代理上的 deepseek-v4-flash 充当）——
+  - name: doubao
+    runner: openai_compat
+    base_url: http://1239mxgn96959.vicp.fun:4009/v1
+    api_key_env: PROXY_API_KEY
+    model: deepseek-v4-flash-openai
+    concurrency: 8
+    temperature: 0
