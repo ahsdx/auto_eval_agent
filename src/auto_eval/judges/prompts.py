@@ -320,8 +320,47 @@ def parse_json_loose(text: str):
     start, end = t.find("{"), t.rfind("}")
     if start == -1 or end == -1 or end < start:
         return None
+    candidate = t[start : end + 1]
     try:
-        return json.loads(t[start : end + 1])
+        return json.loads(candidate)
+    except json.JSONDecodeError:
+        pass
+
+    # 部分模型会在 JSON 字符串值内直接使用未转义的双引号，例如：
+    # "rationale": "下一句"唯见长江天际流"完全正确"
+    # 这类输出语义完整，不应因格式瑕疵静默回退为 unclear。
+    repaired: list[str] = []
+    in_string = False
+    escaped = False
+    for i, ch in enumerate(candidate):
+        if escaped:
+            repaired.append(ch)
+            escaped = False
+            continue
+        if ch == "\\" and in_string:
+            repaired.append(ch)
+            escaped = True
+            continue
+        if ch != '"':
+            repaired.append(ch)
+            continue
+        if not in_string:
+            in_string = True
+            repaired.append(ch)
+            continue
+        # 合法结束引号后只能接空白及 : , } ] 或到达文本末尾。
+        j = i + 1
+        while j < len(candidate) and candidate[j].isspace():
+            j += 1
+        if j >= len(candidate) or candidate[j] in ":,}]":
+            in_string = False
+            repaired.append(ch)
+        else:
+            repaired.append('\\"')
+    repaired_text = "".join(repaired)
+    repaired_text = re.sub(r",\s*([}\]])", r"\1", repaired_text)
+    try:
+        return json.loads(repaired_text)
     except json.JSONDecodeError:
         return None
 

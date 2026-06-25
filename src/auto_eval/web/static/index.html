@@ -71,8 +71,11 @@
     <details class="skill-breakdown" v-if="summary && summary.by_skill && summary.by_skill.overview && summary.by_skill.overview.length" open>
       <summary>📊 按垂域分析（{{ summary.by_skill.overview.length }} 个垂域 · 维度问题阈值 ≤ {{ summary.by_skill.threshold }}）</summary>
       <div ref="pieChart" style="width:100%;height:260px;"></div>
+      <p v-if="fallbackStat && fallbackStat.fbCount > 0" class="fallback-hint">
+        ⚠️ 共 {{ fallbackStat.total }} 题，其中 {{ fallbackStat.fbCount }} 题（{{ (fallbackStat.rate*100).toFixed(0) }}%）未命中明确垂域（落“通用”）→ 建议检查 Skill 匹配表覆盖度或预标 category
+      </p>
       <table class="grid">
-        <thead><tr><th>垂域</th><th>样本量</th><th>正确率</th><th>平均分</th><th>首要错因</th><th>低一致率</th><th>分类失败</th></tr></thead>
+        <thead><tr><th>垂域</th><th>样本量</th><th>正确率</th><th>平均分</th><th>首要错因</th><th>低一致率</th></tr></thead>
         <tbody>
           <tr v-for="s in summary.by_skill.overview" :key="s.skill">
             <td>{{ s.display }}</td>
@@ -81,7 +84,6 @@
             <td>{{ s.focal_mean_total != null ? s.focal_mean_total.toFixed(2) : '—' }}</td>
             <td>{{ s.first_cluster || '—' }}</td>
             <td>{{ (s.low_agreement_rate*100).toFixed(0) + '%' }}</td>
-            <td>{{ s.fallback_pct != null ? (s.fallback_pct*100).toFixed(0) + '%' : '—' }}</td>
           </tr>
         </tbody>
       </table>
@@ -130,13 +132,27 @@
         <span class="result-count">共 {{ filteredResults.length }} 条</span>
       </div>
       <div class="result-table-wrap">
-        <table class="grid results">
+        <table class="grid results compact-results" :style="{ width: resultTableWidth + 'px' }">
+          <colgroup>
+            <col style="width:48px">
+            <col v-for="c in resultCols" :key="'col-'+c.key" :style="{ width: columnWidth(c) + 'px' }">
+          </colgroup>
           <thead><tr><th>#</th><th v-for="c in resultCols" :key="c.key">{{ c.label }}</th></tr></thead>
           <tbody>
             <template v-for="(r,i) in pagedResults" :key="r.index ?? i">
               <tr :class="{'result-error':r.error}">
-                <td>{{ (resultPage-1)*20+i+1 }}</td>
-                <td v-for="c in resultCols" :key="c.key">{{ cell(r, c) }}</td>
+                <td><div class="cell-clamp cell-center">{{ (resultPage-1)*20+i+1 }}</div></td>
+                <td
+                  v-for="c in resultCols"
+                  :key="c.key"
+                  @mouseenter="showCellTooltip($event, cell(r, c))"
+                  @mouseleave="scheduleHideCellTooltip"
+                >
+                  <div
+                    class="cell-clamp"
+                    :class="{'cell-center': c.rubricDim || ['correctness','winner','total','used_search','truncated','arbitrated','agree','bidirectional_consistent'].includes(c.key)}"
+                  >{{ cell(r, c) }}</div>
+                </td>
               </tr>
               <tr v-if="r.error" class="result-error-detail"><td colspan="99">评估失败：{{ r.error }}</td></tr>
               <tr v-if="r.tool_trace && r.tool_trace.length" class="trace">
@@ -152,6 +168,13 @@
         <button @click="changePage(1)" :disabled="resultPage>=pageCount">下一页</button>
       </div>
     </div>
+    <div
+      v-if="cellTooltip.visible"
+      class="cell-tooltip"
+      :style="cellTooltip.style"
+      @mouseenter="keepCellTooltip"
+      @mouseleave="hideCellTooltip"
+    >{{ cellTooltip.text }}</div>
   </section>
 </div>
 

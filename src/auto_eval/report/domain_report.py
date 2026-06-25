@@ -73,7 +73,9 @@ def _dim_problem_dist(focal_verdicts, threshold, n_items, scale) -> dict[str, di
         out[dim] = {
             "rate": (len(ids) / n_items) if n_items else 0.0,
             "count": len(ids),
-            "item_ids": ids,
+            # 仅供 tooltip/Markdown 预览；前端完整下钻直接按 rubric 动态筛选，
+            # 无需把成千上万个题号重复塞进 summary。
+            "item_ids": ids[:10],
         }
     return out
 
@@ -107,6 +109,7 @@ def _build_overview(sections, focal) -> list[dict]:
             "first_cluster": s["clusters"][0]["label"] if s["clusters"] else "—",
             "low_agreement_rate": s["low_agreement_rate"],
             "fallback_pct": s["category_source_pct"].get("fallback_default"),
+            "fallback_count": round(s["n_items"] * s["category_source_pct"].get("fallback_default", 0)),
         })
     return rows
 
@@ -185,14 +188,23 @@ def _render_c_md(C, focal) -> str:
     L.append(f"> 主轴：垂域（Skill）。focal = **{focal}**；每条题经 SkillRouter 归一到垂域。")
     L.append("")
 
+    total_items = sum(r["n_items"] for r in C["overview"])
+    fb_count = sum(r.get("fallback_count", 0) for r in C["overview"])
+    if fb_count > 0:
+        L.append(
+            f"> ⚠️ 共 {total_items} 题，其中 {fb_count} 题"
+            f"（{_pct(fb_count / total_items if total_items else 0)}）未命中明确垂域（落“通用”）"
+            f"→ 建议检查 Skill 匹配表覆盖度，或给这些题预标 category。"
+        )
+        L.append("")
     L.append("## 一、总览（一行一垂域，扫一眼定位最弱垂域）")
-    L.append("| 垂域 | 样本量 | focal正确率 | focal平均分 | 首要错因 | 低一致率 | 分类失败占比 |")
-    L.append("|---|---|---|---|---|---|---|")
+    L.append("| 垂域 | 样本量 | focal正确率 | focal平均分 | 首要错因 | 低一致率 |")
+    L.append("|---|---|---|---|---|---|")
     for r in C["overview"]:
         L.append(
             f"| {r['display']} | {r['n_items']} | "
             f"{_pct(r['focal_right_rate'])} | {_f(r['focal_mean_total'])} | "
-            f"{r['first_cluster']} | {_pct(r['low_agreement_rate'])} | {_pct(r['fallback_pct'])} |"
+            f"{r['first_cluster']} | {_pct(r['low_agreement_rate'])} |"
         )
     L.append("")
 

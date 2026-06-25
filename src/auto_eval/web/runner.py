@@ -5,6 +5,10 @@
 from __future__ import annotations
 
 import asyncio
+import json
+import traceback
+from datetime import datetime
+from pathlib import Path
 
 from ..config import AppConfig
 from ..dataset import to_prompt
@@ -65,16 +69,25 @@ async def _run(task: Task, cfg: AppConfig) -> None:
 
     async def one(idx: int, item_dict: dict):
         async with sem:
-            try:
-                res = await _eval_one(
-                    task.mode, idx, item_dict, rubrics, pair_judges, cfg, scale, online_runner, process_dims, arbitrator
-                )
-            except Exception as e:
+            last_error = None
+            for attempt in range(2):
+                try:
+                    res = await _eval_one(
+                        task.mode, idx, item_dict, rubrics, pair_judges, cfg, scale,
+                        online_runner, process_dims, arbitrator
+                    )
+                    break
+                except Exception as e:
+                    last_error = e
+                    if attempt == 0:
+                        await asyncio.sleep(1.0)
+            else:
                 res = {
                     "index": idx,
                     "query": item_dict.get("query", ""),
-                    "error": f"{type(e).__name__}: {e}",
+                    "error": f"{type(last_error).__name__}: {last_error}",
                 }
+                _write_eval_error(task.id, idx, item_dict, last_error)
         res["index"] = idx
         task.results.append(res)
         task.done_total += 1
@@ -84,6 +97,25 @@ async def _run(task: Task, cfg: AppConfig) -> None:
         )
 
     await asyncio.gather(*[one(i, it) for i, it in enumerate(task.items)])
+
+
+def _write_eval_error(task_id: str, idx: int, item: dict, error: Exception | None) -> None:
+    """持久化最终失败，避免内存任务结束后无法定位批跑异常。"""
+    try:
+        path = Path("runs") / "eval_errors.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        record = {
+            "time": datetime.now().isoformat(timespec="seconds"),
+            "task_id": task_id,
+            "index": idx,
+            "query": item.get("query", ""),
+            "error": f"{type(error).__name__}: {error}" if error else "unknown",
+            "traceback": "".join(traceback.format_exception(error)) if error else "",
+        }
+        with path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
 
 
 async def _eval_one(mode, idx, item_dict, rubrics, pair_judges, cfg, scale, online_runner, process_dims=None, arbitrator=None) -> dict:

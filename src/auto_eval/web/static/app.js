@@ -34,6 +34,8 @@ createApp({
     const correctnessFilter = ref("");
     const problemDimFilter = ref("");
     const resultPage = ref(1);
+    const cellTooltip = ref({ visible: false, text: "", style: {} });
+    let tooltipHideTimer = null;
     const pageSize = 20;
 
     const formatHint = computed(
@@ -129,6 +131,20 @@ createApp({
       ];
     });
 
+    function columnWidth(c) {
+      if (c.rubricDim) return 96;
+      if (["query"].includes(c.key)) return 230;
+      if (["answer", "generated_answer", "answer_a", "answer_b"].includes(c.key)) return 300;
+      if (c.key === "rationale") return 340;
+      if (c.key === "item_id") return 90;
+      if (["correctness", "winner", "total", "used_search", "truncated", "arbitrated", "agree", "bidirectional_consistent"].includes(c.key)) return 92;
+      return 120;
+    }
+
+    const resultTableWidth = computed(
+      () => 48 + resultCols.value.reduce((sum, c) => sum + columnWidth(c), 0)
+    );
+
     const filteredResults = computed(() => {
       const q = resultQuery.value.trim().toLowerCase();
       const threshold = (summary.value && summary.value.by_skill && summary.value.by_skill.threshold) || 2;
@@ -146,6 +162,14 @@ createApp({
       const safePage = Math.min(resultPage.value, pageCount.value);
       const start = (safePage - 1) * pageSize;
       return filteredResults.value.slice(start, start + pageSize);
+    });
+
+    const fallbackStat = computed(() => {
+      const bs = summary.value && summary.value.by_skill;
+      if (!bs || !bs.overview) return null;
+      const total = bs.overview.reduce((s, r) => s + (r.n_items || 0), 0);
+      const fbCount = bs.overview.reduce((s, r) => s + (r.fallback_count || 0), 0);
+      return { total, fbCount, rate: total ? fbCount / total : 0 };
     });
 
     function selectSkill(key) {
@@ -291,8 +315,40 @@ createApp({
       if (c.key === "winner") return v === "a" ? "A" : v === "b" ? "B" : "平";
       if (c.key === "correctness") return ({ right: "正确", wrong: "错误", partial: "部分", unclear: "不清" }[v] || v) || "";
       if (v == null) return "";
-      if (typeof v === "string" && v.length > 80) return v.slice(0, 80) + "…";
       return v;
+    }
+
+    function showCellTooltip(event, value) {
+      const text = value == null ? "" : String(value);
+      if (!text || text.length < 12) return;
+      if (tooltipHideTimer) clearTimeout(tooltipHideTimer);
+      const rect = event.currentTarget.getBoundingClientRect();
+      const width = Math.min(560, Math.max(260, window.innerWidth - 24));
+      const left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
+      const estimatedHeight = Math.min(360, Math.max(80, Math.ceil(text.length / 30) * 22));
+      const below = rect.bottom + 8;
+      const top = below + estimatedHeight < window.innerHeight
+        ? below
+        : Math.max(12, rect.top - estimatedHeight - 8);
+      cellTooltip.value = {
+        visible: true,
+        text,
+        style: { left: `${left}px`, top: `${top}px`, width: `${width}px` },
+      };
+    }
+
+    function scheduleHideCellTooltip() {
+      tooltipHideTimer = setTimeout(() => {
+        cellTooltip.value.visible = false;
+      }, 120);
+    }
+
+    function keepCellTooltip() {
+      if (tooltipHideTimer) clearTimeout(tooltipHideTimer);
+    }
+
+    function hideCellTooltip() {
+      cellTooltip.value.visible = false;
     }
 
     function setBarRef(el, i) {
@@ -382,10 +438,11 @@ createApp({
       concurrency, running, progress, total, results, summary, taskId,
       pieChart, barChartRefs, resultBrowser, setBarRef, renderCharts,
       activeSkill, resultQuery, correctnessFilter, problemDimFilter, resultPage,
-      skillTabs, rubricDims, filteredResults, pagedResults, pageCount,
+      skillTabs, rubricDims, filteredResults, pagedResults, pageCount, resultTableWidth, fallbackStat,
       formatHint, placeholder, previewKeys, resultCols,
-      trunc, switchMode, onFile, doParse, submit, cell, exportCsv, exportJson,
+      trunc, switchMode, onFile, doParse, submit, cell, columnWidth, exportCsv, exportJson,
       selectSkill, drillDownDimension, clearDimensionDrillDown, resetResultPage, changePage,
+      cellTooltip, showCellTooltip, scheduleHideCellTooltip, keepCellTooltip, hideCellTooltip,
     };
   },
 }).mount("#app");

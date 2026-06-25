@@ -35,7 +35,9 @@ class PairwiseJudge:
             answer_b=right_text,
         )
         reply = await self.client.complete(PAIRWISE_SYSTEM, user)
-        data = parse_json_loose(reply.content) or {}
+        data = parse_json_loose(reply.content)
+        if data is None:
+            raise ValueError("成对裁判输出无法解析为 JSON")
         raw = data.get("winner", "tie")
         if raw not in ("a", "b", "tie"):
             raw = "tie"

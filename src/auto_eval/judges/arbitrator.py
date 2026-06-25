@@ -32,7 +32,9 @@ class Arbitrator:
             question=item.question, context=item.context, answer=answer, judges=judges_summary
         )
         reply = await self.client.complete(system, user)
-        data = parse_json_loose(reply.content) or {}
+        data = parse_json_loose(reply.content)
+        if data is None:
+            raise ValueError("仲裁输出无法解析为 JSON")
         correctness = data.get("correctness", "unclear")
         if correctness not in _VALID:
             correctness = "unclear"

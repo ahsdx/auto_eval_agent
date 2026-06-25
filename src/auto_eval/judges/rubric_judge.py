@@ -90,7 +90,9 @@ class RubricJudge:
         latency = int((time.perf_counter() - t0) * 1000)
 
         analysis = parse_analysis(reply.content)
-        data = parse_json_loose(reply.content) or {}
+        data = parse_json_loose(reply.content)
+        if data is None:
+            raise ValueError("裁判输出无法解析为 JSON")
         rubric_raw = data.get("rubric") or {}
         rubric = _flatten_rubric(rubric_raw, dim_names=[d.name for d in dims])
         if data.get("total") is not None:

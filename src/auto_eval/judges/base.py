@@ -138,7 +138,15 @@ class JudgeClient:
             messages.append(assistant_msg)
             for tc in tool_calls:
                 name = tc.function.name
-                args = json.loads(tc.function.arguments or "{}")
+                args = _safe_json(tc.function.arguments)
+                if not isinstance(args, dict):
+                    result = f"(工具参数不是合法 JSON 对象: {args})"
+                    summary = f"{name}(参数格式错误)"
+                    trace.append(summary)
+                    if do_trace:
+                        tool_results.append({"name": name, "args": args, "result": result})
+                    messages.append({"role": "tool", "tool_call_id": tc.id, "content": result})
+                    continue
                 result, summary = self._exec_tool(name, args)
                 trace.append(summary)
                 if do_trace:
