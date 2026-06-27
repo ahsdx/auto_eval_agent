@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 import traceback
 from datetime import datetime
 from pathlib import Path
@@ -125,6 +126,7 @@ def _write_eval_error(task_id: str, idx: int, item: dict, error: Exception | Non
 
 
 async def _eval_one(mode, idx, item_dict, rubrics, pair_judges, cfg, scale, online_runner, process_dims=None, arbitrator=None) -> dict:
+    t0 = time.perf_counter()
     item = _to_evalitem(item_dict, idx)
     out: dict = {"query": item.question}
 
@@ -201,6 +203,7 @@ async def _eval_one(mode, idx, item_dict, rubrics, pair_judges, cfg, scale, onli
     out["category_display"] = router.display_of(resolved_skill) if router else "通用"
     if item.metadata.get("category_source"):
         out["category_source"] = item.metadata["category_source"]
+    out["latency_s"] = round(time.perf_counter() - t0, 1)  # 该题评测总耗时（秒，含 agent loop 多轮/多裁判/仲裁）
     return out
 
 

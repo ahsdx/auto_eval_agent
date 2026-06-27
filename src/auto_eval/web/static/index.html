@@ -13,10 +13,8 @@
     <button v-for="m in modes" :class="{active: mode===m.key}" @click="switchMode(m.key)">{{ m.label }}</button>
   </div>
 
-  <section>
-    <h2>历史记录
-      <button @click="loadHistory" :disabled="loadingHistory">刷新</button>
-    </h2>
+  <details class="history-section">
+    <summary>历史记录（{{ historyItems.length }}）<button @click.stop="loadHistory" :disabled="loadingHistory" style="margin-left:8px">刷新</button></summary>
     <p class="hint">历史结果保存在本地 runs/web_history，服务重启后仍可加载；运行中断时会保留已完成的题目。</p>
     <table class="grid history-table" v-if="historyItems.length">
       <thead><tr><th>时间</th><th>模式</th><th>状态</th><th>进度</th><th>预览</th><th>操作</th></tr></thead>
@@ -27,7 +25,7 @@
           <td>{{ h.status }}</td>
           <td>{{ h.done }}/{{ h.total }}</td>
           <td>{{ h.preview }}</td>
-          <td>
+          <td style="white-space:nowrap">
             <button @click="loadHistoryTask(h.task_id)">加载</button>
             <button @click="delHistory(h.task_id)" class="btn-danger">删除</button>
           </td>
@@ -35,7 +33,7 @@
       </tbody>
     </table>
     <p v-else class="hint">暂无历史记录。</p>
-  </section>
+  </details>
   <section>
     <h2>① 批量输入</h2>
     <p class="hint">{{ formatHint }}</p>

@@ -116,6 +116,7 @@ createApp({
           { key: "winner", label: "胜者" },
           { key: "bidirectional_consistent", label: "双向一致" },
           { key: "rationale", label: "理由" },
+        { key: "latency_s", label: "耗时" },
         ];
       const dims = rubricDims.value.map((d) => ({ key: `rubric:${d}`, label: d, rubricDim: d }));
       return [
@@ -130,6 +131,7 @@ createApp({
         { key: "arbitrated", label: "仲裁" },
         { key: "agree", label: "与真值" },
         { key: "rationale", label: "理由" },
+        { key: "latency_s", label: "耗时" },
       ];
     });
 
@@ -139,7 +141,7 @@ createApp({
       if (["answer", "generated_answer", "answer_a", "answer_b"].includes(c.key)) return 300;
       if (c.key === "rationale") return 340;
       if (c.key === "item_id") return 90;
-      if (["correctness", "winner", "total", "used_search", "truncated", "arbitrated", "agree", "bidirectional_consistent"].includes(c.key)) return 92;
+      if (["correctness", "winner", "total", "used_search", "truncated", "arbitrated", "agree", "latency_s", "bidirectional_consistent"].includes(c.key)) return 92;
       return 120;
     }
 
@@ -319,6 +321,7 @@ createApp({
         return v === true ? "✓ 一致" : v === false ? "✗ 不一致" : "?";
       }
       if (c.key === "used_search") return v ? "是" : "否";
+      if (c.key === "latency_s") return v != null ? v + "秒" : "";
       if (c.key === "truncated") return v ? "⚠️是(强制判定)" : "";
       if (c.key === "arbitrated") return v ? `⚖️是(${r.arbitrator_confidence ?? "-"})` : "";
       if (c.key === "bidirectional_consistent") return v ? "是" : "否(位置偏差)";

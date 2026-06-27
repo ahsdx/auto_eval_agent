@@ -8,13 +8,13 @@ judges:
     runner: openai_compat
     base_url: http://1239mxgn96959.vicp.fun:4009
     api_key_env: PROXY_API_KEY
-    model: glm-5
+    model: glm-5.2
     persona: strict_expert
     enable_web_search: true          # 开启 agent loop 联网查证
     enable_fetch: true               # 允许抓取网页正文深挖
     enable_calculate: true           # 允许算术核查
     enable_python: false             # 代码执行默认关
-    concurrency: 4
+    concurrency: 3
 
   # —— 裁判2：终端用户（普通用户视角，deepseek-v4-pro-openai）——
   - name: judge_2
@@ -28,7 +28,7 @@ judges:
     enable_fetch: true
     enable_calculate: true
     enable_python: false
-    concurrency: 4
+    concurrency: 3
 
   # —— 裁判3：产品专家（侧重待评 vs 竞品对比，glm-5-turbo；需竞品结果输入，缺则跳过该题）——
   - name: judge_3
@@ -42,7 +42,7 @@ judges:
     enable_fetch: true
     enable_calculate: true
     enable_python: false
-    concurrency: 4
+    concurrency: 3
 
 # 评测选项：补足人工评测缺点
 eval_options:
